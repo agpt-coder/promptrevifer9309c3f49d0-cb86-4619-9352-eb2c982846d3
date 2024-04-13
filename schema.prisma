@@ -1,0 +1,117 @@
+// datasource db defines the database connection settings.
+// It is configured for PostgreSQL and uses an environment variable for the connection URL.
+// The 'extensions' feature enables the use of PostgreSQL-specific data types.
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+}
+
+// generator db configures Prisma Client settings.
+// It is set up to use Prisma Client Python with asyncio interface and specific features.
+generator db {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+  previewFeatures      = ["postgresqlExtensions"]
+}
+
+model User {
+  id           String         @id @default(dbgenerated("gen_random_uuid()"))
+  email        String         @unique
+  password     String
+  role         Role           @default(FREEUSER)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  prompts      Prompt[]
+  feedback     Feedback[]
+  UsageRecord  UsageRecord[]
+  Subscription Subscription[]
+}
+
+model Prompt {
+  id             String    @id @default(dbgenerated("gen_random_uuid()"))
+  originalPrompt String
+  refinedPrompt  String?
+  createdAt      DateTime  @default(now())
+  refinedAt      DateTime?
+  userId         String
+  User           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Feedback {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  text      String
+  createdAt DateTime @default(now())
+  userId    String
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model APIKey {
+  id          String        @id @default(dbgenerated("gen_random_uuid()"))
+  key         String        @unique
+  createdAt   DateTime      @default(now())
+  ownerId     String
+  ownerType   APIKeyType
+  UsageRecord UsageRecord[]
+}
+
+model UsageRecord {
+  id           String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId       String?
+  apiKeyId     String?
+  dateTime     DateTime @default(now())
+  promptLength Int
+  isRefined    Boolean
+  User         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  APIKey       APIKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+}
+
+model PrivacyPolicy {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  active      Boolean  @default(true)
+}
+
+model TermsOfService {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  active      Boolean  @default(true)
+}
+
+model Subscription {
+  id        String             @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  type      SubscriptionType
+  createdAt DateTime           @default(now())
+  expiresAt DateTime?
+  status    SubscriptionStatus
+  User      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  FREEUSER
+  PREMIUMUSER
+  ADMIN
+}
+
+enum APIKeyType {
+  USER
+  SERVICE
+}
+
+enum SubscriptionType {
+  FREE
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
